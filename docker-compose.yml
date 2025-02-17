@@ -1,0 +1,135 @@
+version: '3'
+
+services:
+  app:
+    build:
+      context: .
+      network: host
+      dockerfile: Dockerfile
+    container_name: laravel-app
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+        reservations:
+          memory: 128M
+    volumes:
+      - .:/var/www/html
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_KEY=
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=gb_laravel
+      - DB_USERNAME=jane
+      - DB_PASSWORD=12345
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    healthcheck:
+      test: ["CMD", "php-fpm-healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: laravel-nginx
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 64M
+        reservations:
+          memory: 32M
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - app-network
+    depends_on:
+      - app
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: laravel-db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 384M
+        reservations:
+          memory: 256M
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-network
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: gb_laravel
+      MYSQL_USER: jane
+      MYSQL_PASSWORD: 12345
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+      MYSQL_TCP_PORT: 3306
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    cap_add:
+      - SYS_NICE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  app-network:
+    name: laravel_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  db_data:
+    name: laravel_db_data
+    driver: local

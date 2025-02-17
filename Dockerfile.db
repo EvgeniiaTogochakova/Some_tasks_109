@@ -1,0 +1,25 @@
+FROM mysql:8.0.32
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /var/run/mysqld /etc/mysql/mysql.conf.d && \
+    chown -R mysql:mysql /var/run/mysqld && \
+    chmod 755 /var/run/mysqld
+
+# Create custom MySQL configuration
+RUN echo '[mysqld]' > /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'bind-address = 0.0.0.0' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'port = 3306' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'host_cache_size = 0' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'default_authentication_plugin = mysql_native_password' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'character-set-server = utf8mb4' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'collation-server = utf8mb4_unicode_ci' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'pid-file = /var/run/mysqld/mysqld.pid' >> /etc/mysql/mysql.conf.d/custom.cnf && \
+    echo 'socket = /var/run/mysqld/mysqld.sock' >> /etc/mysql/mysql.conf.d/custom.cnf
+
+# Set proper permissions for config
+RUN chown -R mysql:mysql /etc/mysql/mysql.conf.d && \
+    chmod 644 /etc/mysql/mysql.conf.d/custom.cnf
+
+EXPOSE 3306
+
+CMD ["mysqld"]
